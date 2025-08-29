@@ -23,6 +23,16 @@ export interface Order {
   notes?: string;
 }
 
+export interface Review {
+  id: string;
+  userId: string;
+  userName: string;
+  userHall: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
 export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;

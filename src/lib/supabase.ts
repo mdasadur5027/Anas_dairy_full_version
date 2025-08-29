@@ -83,6 +83,32 @@ export interface Database {
           updated_at?: string;
         };
       };
+      reviews: {
+        Row: {
+          id: string;
+          user_id: string;
+          rating: number;
+          comment: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          rating: number;
+          comment: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          rating?: number;
+          comment?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
 }

@@ -26,8 +26,13 @@ const ClientAuth: React.FC = () => {
   }, [isAuthenticated, navigate]);
 
   const halls = [
-    'Titumir Hall', 'Bangabandhu Hall', 'Sher-e-Bangla Hall', 'Nazrul Hall',
-    'Rokeya Hall', 'Suraiya Khatun Hall', 'New Hall', 'Guest House'
+    'Shahid President Ziaur Rahman Hall',
+    'Shahid Lt. Selim Hall',
+    'Shahid Shahidul Islam Hall', 
+    'Shahid Abdul Hamid Hall',
+    'Bangabandhu Sheikh Mujibur Rahman Hall',
+    'Nawab Foyzunnessa Chowdhurani Hall',
+    'Tin Shed Hall (Extension)'
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,7 +47,16 @@ const ClientAuth: React.FC = () => {
           setError(result.error || 'Login failed');
           return;
         }
+        // Navigation will be handled by useEffect when user state updates
       } else {
+        console.log('Starting registration with data:', {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          hall: formData.hall,
+          room: formData.room
+        });
+        
         const result = await register({
           name: formData.name,
           email: formData.email,
@@ -51,14 +65,15 @@ const ClientAuth: React.FC = () => {
           room: formData.room,
           password: formData.password
         });
+        
         if (!result.success) {
           setError(result.error || 'Registration failed');
           return;
         }
+        // Navigation will be handled by useEffect when user state updates
       }
-      
-      navigate('/client/dashboard');
     } catch (err) {
+      console.error('Form submission error:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);

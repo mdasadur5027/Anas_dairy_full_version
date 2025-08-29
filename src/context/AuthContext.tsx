@@ -112,33 +112,75 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const register = async (userData: Omit<User, 'id' | 'role'> & { password: string }): Promise<{ success: boolean; error?: string }> => {
     try {
+      console.log('Starting registration process for:', userData.email);
+      
       // Sign up the user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
       });
 
-      if (authError) throw authError;
-
-      if (authData.user) {
-        // Insert user profile
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: authData.user.id,
-            email: userData.email,
-            name: userData.name,
-            phone: userData.phone,
-            hall: userData.hall,
-            room: userData.room,
-            role: 'client',
-          });
-
-        if (profileError) throw profileError;
+      if (authError) {
+        console.error('Supabase auth signup error:', authError);
+        return { success: false, error: `Authentication failed: ${authError.message}` };
       }
+
+      if (!authData.user) {
+        console.error('No user returned from auth signup');
+        return { success: false, error: 'Failed to create user account' };
+      }
+
+      console.log('Auth signup successful, user ID:', authData.user.id);
+
+      // Create user profile in public.users table
+      console.log('Creating user profile for:', authData.user.id);
+      
+      const { data: profileData, error: profileError } = await supabase
+        .from('users')
+        .insert({
+          id: authData.user.id,
+          email: userData.email,
+          name: userData.name,
+          phone: userData.phone,
+          hall: userData.hall,
+          room: userData.room,
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        // Clean up auth user if profile creation fails
+        await supabase.auth.signOut();
+        return { success: false, error: `Failed to create user profile: ${profileError.message}` };
+      }
+      
+      if (!profileData) {
+        console.error('No profile data returned');
+        await supabase.auth.signOut();
+        return { success: false, error: 'Failed to create user profile' };
+      }
+      
+      console.log('User profile created successfully:', profileData);
+      
+      // Update auth state with the new user
+      const user: User = {
+        id: profileData.id,
+        name: profileData.name,
+        email: profileData.email,
+        phone: profileData.phone,
+        hall: profileData.hall,
+        room: profileData.room,
+        role: profileData.role,
+      };
+      
+      setAuthState({ user, isAuthenticated: true, loading: false });
 
       return { success: true };
     } catch (error: any) {
+      console.error('Unexpected registration error:', error);
+      // Clean up any partial state
+      await supabase.auth.signOut();
       return { success: false, error: error.message };
     }
   };

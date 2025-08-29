@@ -72,22 +72,12 @@ const Navbar: React.FC = () => {
             ) : (
               <>
                 {!location.pathname.includes('/auth') && (
-                  <>
                     <Link
                       to="/client/auth"
                       className="text-gray-600 hover:text-gray-800 transition-colors"
                     >
                       Sign In
                     </Link>
-                    {/* Discrete admin access - small settings icon */}
-                    <Link
-                      to="/admin/auth"
-                      className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-                      title="Admin Access"
-                    >
-                      <Settings className="h-4 w-4" />
-                    </Link>
-                  </>
                 )}
               </>
             )}
