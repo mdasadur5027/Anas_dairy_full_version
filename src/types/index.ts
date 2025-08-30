@@ -10,17 +10,19 @@ export interface User {
 
 export interface Order {
   id: string;
-  userId: string;
-  userName: string;
-  hall: string;
-  room: string;
-  phone: string;
+  user_id: string;
   quantity: number;
-  totalPrice: number;
-  deliveryDate: string;
+  total_price: number;
+  delivery_date: string;
   status: 'pending' | 'confirmed' | 'delivered' | 'cancelled';
-  createdAt: string;
-  notes?: string;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined fields from users table
+  user_name?: string;
+  user_phone?: string;
+  user_hall?: string;
+  user_room?: string;
 }
 
 export interface Review {

@@ -101,7 +101,7 @@ const HomePage: React.FC = () => {
                 </div>
                 
                 <Link
-                  to="/client/auth"
+                  to="/auth"
                   className="group bg-gradient-to-r from-blue-600 to-blue-700 text-white px-10 py-4 rounded-2xl font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 inline-flex items-center space-x-3 shadow-lg hover:shadow-xl"
                 >
                   <span>Order Now</span>
@@ -224,7 +224,7 @@ const HomePage: React.FC = () => {
                   Be the first to share your experience!
                 </p>
                 <Link 
-                  to="/client/auth" 
+                  to="/auth" 
                   className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-800 font-semibold text-lg transition-colors"
                 >
                   <span>Sign up and leave a review</span>
@@ -270,7 +270,7 @@ const HomePage: React.FC = () => {
               
               <div className="text-center mt-12">
                 <Link
-                  to="/client/auth"
+                  to="/auth"
                   className="inline-flex items-center space-x-2 bg-green-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-green-700 transition-colors shadow-lg hover:shadow-xl"
                 >
                   <MessageCircle className="h-6 w-6" />
@@ -295,7 +295,7 @@ const HomePage: React.FC = () => {
               Join hundreds of RUET students who trust us for their daily nutrition needs
             </p>
             <Link
-              to="/client/auth"
+              to="/auth"
               className="group bg-white text-blue-600 px-12 py-5 rounded-2xl font-bold text-xl hover:bg-gray-50 transition-all duration-300 transform hover:scale-105 inline-flex items-center space-x-3 shadow-2xl"
             >
               <span>Get Started Today</span>
@@ -345,12 +345,12 @@ const HomePage: React.FC = () => {
               <ul className="space-y-3">
                 <li>
                   <Link to="/client/auth" className="text-gray-300 hover:text-white transition-colors">
-                    Order Now
+                    Customer Login
                   </Link>
                 </li>
                 <li>
-                  <Link to="/client/auth" className="text-gray-300 hover:text-white transition-colors">
-                    Customer Login
+                  <Link to="/auth" className="text-gray-300 hover:text-white transition-colors">
+                    Order Now
                   </Link>
                 </li>
                 <li>
@@ -371,7 +371,7 @@ const HomePage: React.FC = () => {
               {/* Discrete Admin Access */}
               <div className="mt-4 md:mt-0">
                 <Link
-                  to="/admin/auth"
+                  to="/auth"
                   className="text-gray-500 hover:text-gray-300 transition-colors text-sm opacity-50 hover:opacity-100 flex items-center space-x-2"
                   title="Admin Access"
                 >
