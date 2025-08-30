@@ -72,12 +72,12 @@ const Navbar: React.FC = () => {
             ) : (
               <>
                 {!location.pathname.includes('/auth') && (
-                    <Link
-                      to="/client/auth"
-                      className="text-gray-600 hover:text-gray-800 transition-colors"
-                    >
-                      Sign In
-                    </Link>
+                  <Link
+                    to="/auth"
+                    className="text-gray-600 hover:text-gray-800 transition-colors"
+                  >
+                    Sign In
+                  </Link>
                 )}
               </>
             )}

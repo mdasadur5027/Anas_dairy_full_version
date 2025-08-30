@@ -28,6 +28,8 @@ interface OrderContextType {
   getUserOrders: () => Order[];
   getTodayOrders: () => Order[];
   getPendingOrders: () => Order[];
+  getUserStreak: () => number;
+  getTotalDeliveredBottles: () => number;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -48,6 +50,9 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => {
     if (isAuthenticated && user) {
       fetchOrders();
+    } else {
+      setOrders([]);
+      setLoading(false);
     }
   }, [isAuthenticated, user]);
 
@@ -60,83 +65,64 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         return;
       }
 
-      console.log('Fetching orders for user:', user.id, 'Role:', user.role); // Debug
+      console.log('Fetching orders for user:', user.id, 'Role:', user.role);
 
       // For regular users, only fetch their orders
       if (user.role !== 'admin') {
-        console.log('Fetching user orders...'); // Debug
-        
         const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
-        console.log('Orders query result:', { ordersData, ordersError }); // Debug
-
         if (ordersError) {
           console.error('Orders error:', ordersError);
           throw ordersError;
         }
 
-        // Get current user's data for the orders
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('id, name, phone, hall, room')
-          .eq('id', user.id)
-          .single();
-
-        if (userError) throw userError;
-
+        // Format orders with current user's data
         const formattedOrders: Order[] = (ordersData || []).map((order: any) => ({
           ...order,
-          user_name: userData?.name || user.name || 'Unknown',
-          user_phone: userData?.phone || user.phone || '',
-          user_hall: userData?.hall || user.hall || '',
-          user_room: userData?.room || user.room || '',
+          user_name: user.name || 'Unknown',
+          user_phone: user.phone || '',
+          user_hall: user.hall || '',
+          user_room: user.room || '',
         }));
 
-        console.log('Formatted orders:', formattedOrders); // Debug
         setOrders(formattedOrders);
       } else {
-        // For admins, fetch all orders
+        // For admins, fetch all orders with user details
         const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
-          .select('*')
+          .select(`
+            *,
+            users!inner(
+              name,
+              phone,
+              hall,
+              room
+            )
+          `)
           .order('created_at', { ascending: false });
 
         if (ordersError) throw ordersError;
 
-        if (!ordersData || ordersData.length === 0) {
-          setOrders([]);
-          return;
-        }
-
-        // Get unique user IDs from orders
-        const userIds = [...new Set(ordersData.map(order => order.user_id))];
-
-        // Fetch user details separately
-        const { data: usersData, error: usersError } = await supabase
-          .from('users')
-          .select('id, name, phone, hall, room')
-          .in('id', userIds);
-
-        if (usersError) throw usersError;
-
-        // Create a map of user data for quick lookup
-        const usersMap = new Map(usersData?.map(user => [user.id, user]) || []);
-
-        // Combine orders with user data
-        const formattedOrders: Order[] = ordersData.map((order: any) => {
-          const userData = usersMap.get(order.user_id);
-          return {
-            ...order,
-            user_name: userData?.name || 'Unknown',
-            user_phone: userData?.phone || '',
-            user_hall: userData?.hall || '',
-            user_room: userData?.room || '',
-          };
-        });
+        // Format orders with user data from join
+        const formattedOrders: Order[] = (ordersData || []).map((order: any) => ({
+          id: order.id,
+          user_id: order.user_id,
+          quantity: order.quantity,
+          total_price: order.total_price,
+          delivery_date: order.delivery_date,
+          status: order.status,
+          notes: order.notes,
+          created_at: order.created_at,
+          updated_at: order.updated_at,
+          user_name: order.users?.name || 'Unknown',
+          user_phone: order.users?.phone || '',
+          user_hall: order.users?.hall || '',
+          user_room: order.users?.room || '',
+        }));
 
         setOrders(formattedOrders);
       }
@@ -150,7 +136,31 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const addOrder = async (orderData: Omit<Order, 'id' | 'created_at' | 'updated_at'>): Promise<{ success: boolean; error?: string }> => {
     try {
-      const { error } = await supabase
+      if (!user) {
+        return { success: false, error: 'User not authenticated' };
+      }
+
+      // Validate delivery date is not in the past
+      const deliveryDate = new Date(orderData.delivery_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (deliveryDate < today) {
+        return { success: false, error: 'Delivery date cannot be in the past' };
+      }
+
+      // Check if user already has an order for this date
+      const existingOrder = orders.find(
+        order => order.user_id === user.id && 
+        order.delivery_date === orderData.delivery_date &&
+        order.status !== 'cancelled'
+      );
+
+      if (existingOrder) {
+        return { success: false, error: 'You already have an order for this date' };
+      }
+
+      const { data, error } = await supabase
         .from('orders')
         .insert({
           user_id: orderData.user_id,
@@ -159,11 +169,22 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           delivery_date: orderData.delivery_date,
           status: orderData.status || 'pending',
           notes: orderData.notes || null,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      await fetchOrders(); // Refresh orders
+      // Add the new order to local state with user data
+      const newOrder: Order = {
+        ...data,
+        user_name: user.name || 'Unknown',
+        user_phone: user.phone || '',
+        user_hall: user.hall || '',
+        user_room: user.room || '',
+      };
+
+      setOrders(prevOrders => [newOrder, ...prevOrders]);
       return { success: true };
     } catch (error: any) {
       console.error('Error adding order:', error);
@@ -180,7 +201,15 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (error) throw error;
 
-      await fetchOrders(); // Refresh orders
+      // Update local state
+      setOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === orderId 
+            ? { ...order, status, updated_at: new Date().toISOString() }
+            : order
+        )
+      );
+
       return { success: true };
     } catch (error: any) {
       console.error('Error updating order status:', error);
@@ -202,6 +231,41 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return orders.filter(order => order.status === 'pending');
   };
 
+  const getUserStreak = () => {
+    if (!user) return 0;
+    
+    const userOrders = getUserOrders()
+      .filter(order => order.status === 'delivered')
+      .sort((a, b) => new Date(b.delivery_date).getTime() - new Date(a.delivery_date).getTime());
+
+    if (userOrders.length === 0) return 0;
+
+    let streak = 0;
+    const today = new Date();
+    
+    for (let i = 0; i < userOrders.length; i++) {
+      const orderDate = new Date(userOrders[i].delivery_date);
+      const expectedDate = new Date(today);
+      expectedDate.setDate(today.getDate() - i);
+      
+      // Check if order is within the expected consecutive day
+      if (orderDate.toDateString() === expectedDate.toDateString()) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    
+    return streak;
+  };
+
+  const getTotalDeliveredBottles = () => {
+    if (!user) return 0;
+    return getUserOrders()
+      .filter(order => order.status === 'delivered')
+      .reduce((total, order) => total + order.quantity, 0);
+  };
+
   return (
     <OrderContext.Provider value={{
       orders,
@@ -212,6 +276,8 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       getUserOrders,
       getTodayOrders,
       getPendingOrders,
+      getUserStreak,
+      getTotalDeliveredBottles,
     }}>
       {children}
     </OrderContext.Provider>

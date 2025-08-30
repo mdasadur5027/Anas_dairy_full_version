@@ -3,7 +3,16 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Milk, Clock, MapPin, Phone, Star, CheckCircle, Truck, MessageCircle, Shield, Award, Users, Mail, Settings } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Review } from '../types';
+
+interface Review {
+  id: string;
+  userId: string;
+  userName: string;
+  userHall: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
 
 const HomePage: React.FC = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -42,6 +51,7 @@ const HomePage: React.FC = () => {
       setReviews(formattedReviews);
     } catch (error) {
       console.error('Error fetching reviews:', error);
+      setReviews([]);
     } finally {
       setLoading(false);
     }
