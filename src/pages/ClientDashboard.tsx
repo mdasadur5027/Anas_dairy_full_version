@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 
 const ClientDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { addOrder, getUserOrders, loading } = useOrders();
+  const { addOrder, getUserOrders, loading, orders } = useOrders(); // Add orders to debug
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -24,6 +24,15 @@ const ClientDashboard: React.FC = () => {
 
   const userOrders = getUserOrders();
 
+  // Debug logs - remove these after fixing
+  React.useEffect(() => {
+    console.log('Debug Info:');
+    console.log('User:', user);
+    console.log('All orders:', orders);
+    console.log('User orders:', userOrders);
+    console.log('User ID:', user?.id);
+  }, [user, orders, userOrders]);
+
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -31,13 +40,15 @@ const ClientDashboard: React.FC = () => {
     setSubmitting(true);
     setError('');
 
+    console.log('Submitting order for user:', user.id); // Debug log
+
     const result = await addOrder({
       user_id: user.id,
       quantity: orderData.quantity,
       total_price: orderData.quantity * 30,
       delivery_date: orderData.deliveryDate,
       status: 'pending',
-      notes: orderData.notes
+      notes: orderData.notes || null
     });
 
     if (result.success) {
@@ -47,8 +58,10 @@ const ClientDashboard: React.FC = () => {
         deliveryDate: new Date().toISOString().split('T')[0],
         notes: ''
       });
+      console.log('Order submitted successfully'); // Debug log
     } else {
       setError(result.error || 'Failed to place order');
+      console.error('Order submission failed:', result.error); // Debug log
     }
 
     setSubmitting(false);
@@ -87,13 +100,18 @@ const ClientDashboard: React.FC = () => {
     const checkUserReview = async () => {
       if (!user) return;
       
-      const { data } = await supabase
-        .from('reviews')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-        
-      setHasReviewed(!!data);
+      try {
+        const { data } = await supabase
+          .from('reviews')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no record found
+          
+        setHasReviewed(!!data);
+      } catch (error) {
+        console.error('Error checking user review:', error);
+        setHasReviewed(false);
+      }
     };
     
     checkUserReview();
@@ -152,6 +170,15 @@ const ClientDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        {/* Debug Info - Remove after fixing */}
+        <div className="mb-4 p-4 bg-yellow-100 border border-yellow-300 rounded-lg">
+          <h3 className="font-semibold text-yellow-800">Debug Info:</h3>
+          <p className="text-yellow-700">User ID: {user?.id}</p>
+          <p className="text-yellow-700">Total orders in context: {orders.length}</p>
+          <p className="text-yellow-700">User orders: {userOrders.length}</p>
+          <p className="text-yellow-700">User role: {user?.role}</p>
+        </div>
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -385,7 +412,11 @@ const ClientDashboard: React.FC = () => {
           <div className="divide-y divide-gray-200">
             {userOrders.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
-                No orders yet. Place your first order to get started!
+                <p>No orders yet. Place your first order to get started!</p>
+                {/* Debug info */}
+                <p className="text-xs mt-2 text-gray-400">
+                  Debug: Total orders in system: {orders.length}
+                </p>
               </div>
             ) : (
               userOrders.map((order) => (

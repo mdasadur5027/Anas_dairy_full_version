@@ -362,10 +362,11 @@ const HomePage: React.FC = () => {
               <div className="mt-4 md:mt-0">
                 <Link
                   to="/admin/auth"
-                  className="text-gray-500 hover:text-gray-300 transition-colors text-xs opacity-50 hover:opacity-100"
+                  className="text-gray-500 hover:text-gray-300 transition-colors text-sm opacity-50 hover:opacity-100 flex items-center space-x-2"
                   title="Admin Access"
                 >
                   <Settings className="h-4 w-4" />
+                  <span>Admin</span>
                 </Link>
               </div>
             </div>

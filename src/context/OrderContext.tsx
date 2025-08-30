@@ -46,7 +46,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       fetchOrders();
     }
   }, [isAuthenticated, user]);
@@ -55,47 +55,94 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     try {
       setLoading(true);
       
-      let query = supabase
-        .from('orders')
-        .select(`
-          *,
-          users!inner(
-            name,
-            phone,
-            hall,
-            room
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      // If user is not admin, only fetch their orders
-      if (user?.role !== 'admin') {
-        query = query.eq('user_id', user?.id);
+      if (!user) {
+        setOrders([]);
+        return;
       }
 
-      const { data, error } = await query;
+      console.log('Fetching orders for user:', user.id, 'Role:', user.role); // Debug
 
-      if (error) throw error;
+      // For regular users, only fetch their orders
+      if (user.role !== 'admin') {
+        console.log('Fetching user orders...'); // Debug
+        
+        const { data: ordersData, error: ordersError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
 
-      const formattedOrders: Order[] = data?.map((order: any) => ({
-        id: order.id,
-        user_id: order.user_id,
-        quantity: order.quantity,
-        total_price: order.total_price,
-        delivery_date: order.delivery_date,
-        status: order.status,
-        notes: order.notes,
-        created_at: order.created_at,
-        updated_at: order.updated_at,
-        user_name: order.users.name,
-        user_phone: order.users.phone,
-        user_hall: order.users.hall,
-        user_room: order.users.room,
-      })) || [];
+        console.log('Orders query result:', { ordersData, ordersError }); // Debug
 
-      setOrders(formattedOrders);
+        if (ordersError) {
+          console.error('Orders error:', ordersError);
+          throw ordersError;
+        }
+
+        // Get current user's data for the orders
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id, name, phone, hall, room')
+          .eq('id', user.id)
+          .single();
+
+        if (userError) throw userError;
+
+        const formattedOrders: Order[] = (ordersData || []).map((order: any) => ({
+          ...order,
+          user_name: userData?.name || user.name || 'Unknown',
+          user_phone: userData?.phone || user.phone || '',
+          user_hall: userData?.hall || user.hall || '',
+          user_room: userData?.room || user.room || '',
+        }));
+
+        console.log('Formatted orders:', formattedOrders); // Debug
+        setOrders(formattedOrders);
+      } else {
+        // For admins, fetch all orders
+        const { data: ordersData, error: ordersError } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (ordersError) throw ordersError;
+
+        if (!ordersData || ordersData.length === 0) {
+          setOrders([]);
+          return;
+        }
+
+        // Get unique user IDs from orders
+        const userIds = [...new Set(ordersData.map(order => order.user_id))];
+
+        // Fetch user details separately
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('id, name, phone, hall, room')
+          .in('id', userIds);
+
+        if (usersError) throw usersError;
+
+        // Create a map of user data for quick lookup
+        const usersMap = new Map(usersData?.map(user => [user.id, user]) || []);
+
+        // Combine orders with user data
+        const formattedOrders: Order[] = ordersData.map((order: any) => {
+          const userData = usersMap.get(order.user_id);
+          return {
+            ...order,
+            user_name: userData?.name || 'Unknown',
+            user_phone: userData?.phone || '',
+            user_hall: userData?.hall || '',
+            user_room: userData?.room || '',
+          };
+        });
+
+        setOrders(formattedOrders);
+      }
     } catch (error) {
       console.error('Error fetching orders:', error);
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -111,7 +158,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           total_price: orderData.total_price,
           delivery_date: orderData.delivery_date,
           status: orderData.status || 'pending',
-          notes: orderData.notes,
+          notes: orderData.notes || null,
         });
 
       if (error) throw error;
@@ -119,6 +166,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       await fetchOrders(); // Refresh orders
       return { success: true };
     } catch (error: any) {
+      console.error('Error adding order:', error);
       return { success: false, error: error.message };
     }
   };
@@ -127,7 +175,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     try {
       const { error } = await supabase
         .from('orders')
-        .update({ status })
+        .update({ status, updated_at: new Date().toISOString() })
         .eq('id', orderId);
 
       if (error) throw error;
@@ -135,6 +183,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       await fetchOrders(); // Refresh orders
       return { success: true };
     } catch (error: any) {
+      console.error('Error updating order status:', error);
       return { success: false, error: error.message };
     }
   };

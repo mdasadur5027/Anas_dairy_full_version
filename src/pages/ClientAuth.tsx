@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Milk, Mail, Lock, User, Phone, MapPin, Home } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -15,15 +15,9 @@ const ClientAuth: React.FC = () => {
     hall: '',
     room: ''
   });
-  const navigate = useNavigate();
-  const { login, register, isAuthenticated } = useAuth();
 
-  // Redirect if already authenticated
-  React.useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/client/dashboard');
-    }
-  }, [isAuthenticated, navigate]);
+  const navigate = useNavigate();
+  const { login, register } = useAuth();
 
   const halls = [
     'Shahid President Ziaur Rahman Hall',
@@ -39,24 +33,53 @@ const ClientAuth: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
       if (isLogin) {
+        // --- LOGIN ---
         const result = await login(formData.email, formData.password);
         if (!result.success) {
           setError(result.error || 'Login failed');
           return;
         }
-        // Navigation will be handled by useEffect when user state updates
-      } else {
-        console.log('Starting registration with data:', {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          hall: formData.hall,
-          room: formData.room
-        });
+
+        // Check user role and navigate accordingly
+        console.log('Login result:', result.user); // Debug log
+        console.log('User role from result:', result.user?.role); // Debug log
         
+        // Small delay to ensure state is updated
+        setTimeout(() => {
+          if (result.user?.role === 'admin') {
+            console.log('Redirecting to admin dashboard'); // Debug log
+            navigate('/admin/dashboard');
+          } else {
+            console.log('Redirecting to client dashboard'); // Debug log
+            navigate('/client/dashboard');
+          }
+        }, 100);
+      } else {
+        // --- SIGNUP ---
+        if (!formData.name.trim()) {
+          setError('Name is required');
+          return;
+        }
+        if (!formData.phone.trim()) {
+          setError('Phone number is required');
+          return;
+        }
+        if (!formData.hall) {
+          setError('Please select a hall');
+          return;
+        }
+        if (!formData.room.trim()) {
+          setError('Room number is required');
+          return;
+        }
+        if (formData.password.length < 6) {
+          setError('Password must be at least 6 characters');
+          return;
+        }
+
         const result = await register({
           name: formData.name,
           email: formData.email,
@@ -65,15 +88,18 @@ const ClientAuth: React.FC = () => {
           room: formData.room,
           password: formData.password
         });
-        
+
         if (!result.success) {
           setError(result.error || 'Registration failed');
           return;
         }
-        // Navigation will be handled by useEffect when user state updates
+
+        // After signup, go to login page
+        setIsLogin(true);
+        setFormData(prev => ({ ...prev, password: '' })); // clear password
+        setError('Registration successful! Please sign in.');
       }
     } catch (err) {
-      console.error('Form submission error:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -81,10 +107,7 @@ const ClientAuth: React.FC = () => {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   return (
@@ -93,22 +116,26 @@ const ClientAuth: React.FC = () => {
         <div className="text-center">
           <Milk className="mx-auto h-12 w-12 text-blue-600" />
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            {isLogin ? 'Welcome Back' : 'Join RUET Milk'}
+            {isLogin ? 'Welcome to RUET Milk' : 'Join RUET Milk'}
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             {isLogin 
-              ? 'Sign in to your account to place orders' 
+              ? 'Sign in to access your dashboard' 
               : 'Create your account for fresh milk delivery'
             }
           </p>
         </div>
-        
+
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <div className={`border px-4 py-3 rounded-lg ${
+            error.includes('successful') 
+              ? 'bg-green-50 border-green-200 text-green-700'
+              : 'bg-red-50 border-red-200 text-red-700'
+          }`}>
             {error}
           </div>
         )}
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="bg-white p-8 rounded-xl shadow-lg space-y-4">
             {!isLogin && (
@@ -130,7 +157,7 @@ const ClientAuth: React.FC = () => {
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Phone Number
@@ -148,7 +175,7 @@ const ClientAuth: React.FC = () => {
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Hall Name
@@ -169,7 +196,7 @@ const ClientAuth: React.FC = () => {
                     </select>
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Room Number
@@ -189,7 +216,7 @@ const ClientAuth: React.FC = () => {
                 </div>
               </>
             )}
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
@@ -207,7 +234,7 @@ const ClientAuth: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Password
@@ -229,7 +256,7 @@ const ClientAuth: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-1">Password must be at least 6 characters</p>
               )}
             </div>
-            
+
             <button
               type="submit"
               disabled={loading}
@@ -238,7 +265,7 @@ const ClientAuth: React.FC = () => {
               {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
             </button>
           </div>
-          
+
           <div className="text-center">
             <button
               type="button"
@@ -253,6 +280,14 @@ const ClientAuth: React.FC = () => {
             </button>
           </div>
         </form>
+
+        {isLogin && (
+          <div className="text-center">
+            <p className="text-xs text-gray-500">
+              Both admin and client users can sign in here
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,0 +1,3 @@
+UPDATE auth.users 
+SET raw_user_meta_data = jsonb_set(raw_user_meta_data, '{role}', '"admin"')
+WHERE email = 'mdasadur5027@gmail.com';

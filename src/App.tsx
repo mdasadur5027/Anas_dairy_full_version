@@ -6,43 +6,33 @@ import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import ClientAuth from './pages/ClientAuth';
 import ClientDashboard from './pages/ClientDashboard';
-import AdminAuth from './pages/AdminAuth';
 import AdminDashboard from './pages/AdminDashboard';
 
 // Protected Route Components
 const ProtectedClientRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, user, loading } = useAuth();
+  const { user, loading } = useAuth();
   
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  console.log('ProtectedClientRoute - User:', user); // Debug log
+  console.log('ProtectedClientRoute - Loading:', loading); // Debug log
   
-  if (!isAuthenticated || user?.role !== 'client') {
-    return <Navigate to="/client/auth" replace />;
-  }
-  
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (user.role !== 'client') return <Navigate to="/auth" replace />;
   return <>{children}</>;
 };
 
 const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, user, loading } = useAuth();
+  const { user, loading } = useAuth();
   
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600"></div>
-      </div>
-    );
+  console.log('ProtectedAdminRoute - User:', user); // Debug log
+  console.log('ProtectedAdminRoute - Loading:', loading); // Debug log
+  
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (user.role !== 'admin') {
+    console.log('User role is not admin, redirecting to auth. Role:', user.role); // Debug log
+    return <Navigate to="/auth" replace />;
   }
-  
-  if (!isAuthenticated || user?.role !== 'admin') {
-    return <Navigate to="/admin/auth" replace />;
-  }
-  
   return <>{children}</>;
 };
 
@@ -54,8 +44,11 @@ const AppContent: React.FC = () => {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
-          <Route path="/client/auth" element={<ClientAuth />} />
-          <Route path="/admin/auth" element={<AdminAuth />} />
+          <Route path="/auth" element={<ClientAuth />} />
+          
+          {/* Legacy redirects - redirect old auth routes to new unified auth */}
+          <Route path="/client/auth" element={<Navigate to="/auth" replace />} />
+          <Route path="/admin/auth" element={<Navigate to="/auth" replace />} />
           
           {/* Protected Client Routes */}
           <Route 
